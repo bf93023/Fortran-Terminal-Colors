@@ -1,8 +1,8 @@
 !***********************************************************************
-! Module: color_utils_mod
+! Module: Fortran Terminal Colors
 !
 ! Description:
-!   The color_utils_mod module provides utilities for handling ANSI 
+!   The fort_colors_mod module provides utilities for handling ANSI 
 !   escape codes for text formatting in terminal outputs. It includes 
 !   parameters for various text and background colors, text styles, and 
 !   functions to initialize and print colored text.
@@ -72,7 +72,7 @@
 ! Author:
 !   This module was written by Benjamin Ford.
 !**********************************************************************
-module color_utils_mod
+module fort_colors_mod
     implicit none
     ! ANSI escape codes for text colors
     character(len=*), parameter :: RESET = char(27) // '[0m'
@@ -167,4 +167,4 @@ contains
         end if
     end subroutine print_colored
 
-end module color_utils_mod
+end module fort_colors_mod
