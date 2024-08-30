@@ -279,31 +279,47 @@ program test_colors
     ! Initialize colors
     call initialize_colors(.true.)
 
-    ! Test new preset styles
-    call print_styled("Error: File not found!", ERROR_STYLE)
-    call print_styled("Warning: Low disk space.", WARNING_STYLE)
-    call print_styled("Success: Operation completed successfully.", SUCCESS_STYLE)
-    call print_styled("The only way to do great work is to love what you do. - Steve Jobs", QUOTE_STYLE)
-    call print_styled("def example_function():", CODE_STYLE)
-    call print_styled("    print('Hello, World!')", CODE_STYLE)
-    call print_styled("Footer: Thank you for using our software!", FOOTER_STYLE)
+    ! Simulate a program startup sequence
+    call print_styled("=== Welcome to the Fort Colors Utility ===", TITLE_STYLE)
+    call print_styled("Version 1.0.0", SUBTITLE_STYLE)
+    call print_styled("Initializing components...", BODY_STYLE_CONST)
 
-    ! Test the progress bar
+    ! Simulate loading configurations
+    call print_styled("Loading configuration file: config.cfg", BODY_STYLE_CONST)
+    call print_styled("Configuration loaded successfully.", SUCCESS_STYLE)
+
+    ! Simulate checking system status
+    call print_styled("Checking system status...", BODY_STYLE_CONST)
+    call print_styled("Warning: Low disk space detected on drive C:.", WARNING_STYLE)
+    call print_styled("Error: Unable to locate the backup drive.", ERROR_STYLE)
+
+    ! Display a motivational quote for the user
+    call print_styled("Tip of the Day: The only way to do great work is to love what you do. - Steve Jobs", QUOTE_STYLE)
+
+    ! Simulate code output section
+    call print_styled("Generating report...", BODY_STYLE_CONST)
+    call print_styled("def generate_report():", CODE_STYLE)
+    call print_styled("    print('Generating data...')", CODE_STYLE)
+    call print_styled("    # Placeholder for actual report generation logic", CODE_STYLE)
+
+    ! Displaying report headings and details
+    call print_styled("=== Report Summary ===", HEADING_STYLE)
+    call print_styled("Task Name: Data Analysis", BODY_STYLE_CONST)
+    call print_styled("Status: Completed", SUCCESS_STYLE)
+    call print_styled("Details:", BODY_STYLE_CONST)
+    call print_bullet("Processed 1000 records", "*", 4)
+    call print_bullet("Found 3 anomalies", "*", 4)
+
+    ! Simulate progress of a long-running operation
+    call print_styled("Starting data cleanup operation...", BODY_STYLE_CONST)
     do i = 1, 100
         call print_progress_bar(i, 100)
         call sleep(1)  ! Simulate some work with a delay
     end do
     write(*,*)  ! Move to a new line after the progress bar
+    call print_styled("Data cleanup operation completed successfully.", SUCCESS_STYLE)
 
-    ! Create a modifiable copy of BODY_STYLE for alignment changes
-    body_style = BODY_STYLE_CONST
-
-    ! Test alignment with body style
-    call print_styled("Left aligned text", body_style)
-
-    body_style%alignment = "center"
-    call print_styled("Center aligned text", body_style)
-
-    body_style%alignment = "right"
-    call print_styled("Right aligned text", body_style)
+    ! Simulate footer or ending message
+    call print_styled("Thank you for using Fort Colors Utility!", FOOTER_STYLE)
+    call print_styled("=== End of Program ===", TITLE_STYLE)
 end program test_colors
