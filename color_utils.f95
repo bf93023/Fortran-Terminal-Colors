@@ -1,79 +1,6 @@
-!***********************************************************************
-! Module: Fortran Terminal Colors
-!
-! Description:
-!   The fort_colors_mod module provides utilities for handling ANSI 
-!   escape codes for text formatting in terminal outputs. It includes 
-!   parameters for various text and background colors, text styles, and 
-!   functions to initialize and print colored text.
-!
-!   This module is useful for creating visually appealing terminal 
-!   outputs by allowing customization of text color and style. It 
-!   includes support for enabling and disabling ANSI escape codes, 
-!   making it adaptable to environments that do not support ANSI codes.
-!
-! Parameters:
-!   RESET              - ANSI escape code to reset all attributes
-!   RED                - ANSI escape code for red text
-!   GREEN              - ANSI escape code for green text
-!   YELLOW             - ANSI escape code for yellow text
-!   BLUE               - ANSI escape code for blue text
-!   MAGENTA            - ANSI escape code for magenta text
-!   CYAN               - ANSI escape code for cyan text
-!   WHITE              - ANSI escape code for white text
-!   BLACK              - ANSI escape code for black text
-!   BRIGHT_RED         - ANSI escape code for bright red text
-!   BRIGHT_GREEN       - ANSI escape code for bright green text
-!   BRIGHT_YELLOW      - ANSI escape code for bright yellow text
-!   BRIGHT_BLUE        - ANSI escape code for bright blue text
-!   BRIGHT_MAGENTA     - ANSI escape code for bright magenta text
-!   BRIGHT_CYAN        - ANSI escape code for bright cyan text
-!   BRIGHT_WHITE       - ANSI escape code for bright white text
-!   BG_BLACK           - ANSI escape code for black background
-!   BG_RED             - ANSI escape code for red background
-!   BG_GREEN           - ANSI escape code for green background
-!   BG_YELLOW          - ANSI escape code for yellow background
-!   BG_BLUE            - ANSI escape code for blue background
-!   BG_MAGENTA         - ANSI escape code for magenta background
-!   BG_CYAN            - ANSI escape code for cyan background
-!   BG_WHITE           - ANSI escape code for white background
-!   BG_BRIGHT_BLACK    - ANSI escape code for bright black background
-!   BG_BRIGHT_RED      - ANSI escape code for bright red background
-!   BG_BRIGHT_GREEN    - ANSI escape code for bright green background
-!   BG_BRIGHT_YELLOW   - ANSI escape code for bright yellow background
-!   BG_BRIGHT_BLUE     - ANSI escape code for bright blue background
-!   BG_BRIGHT_MAGENTA  - ANSI escape code for bright magenta background
-!   BG_BRIGHT_CYAN     - ANSI escape code for bright cyan background
-!   BG_BRIGHT_WHITE    - ANSI escape code for bright white background
-!   BOLD               - ANSI escape code for bold text
-!   DIM                - ANSI escape code for dim text
-!   ITALIC             - ANSI escape code for italic text
-!   UNDERLINE          - ANSI escape code for underlined text
-!   BLINK              - ANSI escape code for blinking text
-!   INVERSE            - ANSI escape code for inverse text
-!   HIDDEN             - ANSI escape code for hidden text
-!   STRIKETHROUGH      - ANSI escape code for strikethrough text
-!
-! Variables:
-!   ansi_support       - Logical flag to check if ANSI support is enabled
-!
-! Functions/Subroutines:
-!   initialize_colors  - Initializes ANSI support based on optional input
-!   print_colored      - Prints text in specified color and column position
-!
-! Usage:
-!   1. Initialize colors (optional):
-!      call initialize_colors(.true.)
-!
-!   2. Print colored text:
-!      call print_colored('Hello, World!', RED)
-!      call print_colored('Warning!', YELLOW, 10)
-!
-! Author:
-!   This module was written by Benjamin Ford.
-!**********************************************************************
 module fort_colors_mod
     implicit none
+
     ! ANSI escape codes for text colors
     character(len=*), parameter :: RESET = char(27) // '[0m'
     character(len=*), parameter :: RED = char(27) // '[31m'
@@ -123,6 +50,53 @@ module fort_colors_mod
     ! Flag to check if ANSI support is enabled
     logical :: ansi_support = .true.
 
+    ! Define a derived type to store text style options
+    type :: TextStyle
+        character(len=10) :: color = "WHITE"
+        character(len=15) :: bg_color = ""
+        logical :: bold = .false.
+        logical :: italic = .false.
+        logical :: underline = .false.
+        integer :: indent = 0
+        character(len=10) :: alignment = "left"
+    end type TextStyle
+
+    ! Enhanced preset styles with distinct styling for code
+    type(TextStyle), parameter :: TITLE_STYLE = TextStyle(color="BRIGHT_BLUE", &
+        bg_color="", bold=.true., underline=.true., alignment="center")
+
+    type(TextStyle), parameter :: SUBTITLE_STYLE = TextStyle(color="BRIGHT_MAGENTA", &
+        bg_color="", bold=.true., alignment="center")
+
+    type(TextStyle), parameter :: HEADING_STYLE = TextStyle(color="BRIGHT_GREEN", &
+        bg_color="", bold=.true., alignment="left")
+
+    type(TextStyle), parameter :: BODY_STYLE_CONST = TextStyle(color="WHITE", &
+        bg_color="", alignment="left")
+
+    type(TextStyle), parameter :: BULLET_STYLE = TextStyle(color="CYAN", &
+        bg_color="", alignment="left", indent=4)
+
+    ! Additional styles
+    type(TextStyle), parameter :: ERROR_STYLE = TextStyle(color="BRIGHT_RED", &
+        bg_color="", bold=.true., alignment="left")
+
+    type(TextStyle), parameter :: WARNING_STYLE = TextStyle(color="YELLOW", &
+        bg_color="", bold=.true., alignment="left")
+
+    type(TextStyle), parameter :: SUCCESS_STYLE = TextStyle(color="BRIGHT_GREEN", &
+        bg_color="", bold=.true., alignment="left")
+
+    type(TextStyle), parameter :: QUOTE_STYLE = TextStyle(color="MAGENTA", &
+        bg_color="", italic=.true., alignment="left", indent=2)
+
+    ! Enhanced CODE_STYLE with background color and dim text
+    type(TextStyle), parameter :: CODE_STYLE = TextStyle(color="WHITE", &
+        bg_color="BG_BRIGHT_BLACK", bold=.false., italic=.false., alignment="left", indent=4)
+
+    type(TextStyle), parameter :: FOOTER_STYLE = TextStyle(color="BRIGHT_CYAN", &
+        bg_color="", bold=.false., alignment="center")
+
 contains
 
     subroutine initialize_colors(enable_colors)
@@ -135,36 +109,183 @@ contains
         end if
     end subroutine initialize_colors
 
-    subroutine print_colored(text, color, column)
+    subroutine print_styled(text, style)
         implicit none
         character(len=*), intent(in) :: text
-        character(len=*), intent(in) :: color
-        integer, intent(in), optional :: column
-    
+        type(TextStyle), intent(in) :: style
         character(len=:), allocatable :: formatted_text
-        character(len=*), parameter :: RESET = char(27) // '[0m'  ! ANSI reset code
-        integer :: col_pos
-    
-        ! Default column position is 1 if not provided
-        col_pos = 1
-        if (present(column)) then
-            col_pos = column
-        end if
-    
-        ! Format the text with the specified column position
-        if (col_pos > 1) then ! Column position specified
-            allocate(character(len=col_pos + len(trim(text))) :: formatted_text)
-            formatted_text = repeat(' ', col_pos - 1) // trim(text)
-        else ! No column position specified
+
+        ! Generate ANSI codes based on style
+        if (ansi_support) then
+            formatted_text = create_ansi_code(style) // trim(text) // RESET
+        else
             formatted_text = trim(text)
         end if
+
+        ! Apply alignment and indentation
+        call print_aligned(formatted_text, style%alignment, style%indent)
+    end subroutine print_styled
+
+    function create_ansi_code(style) result(ansi_code)
+        implicit none
+        type(TextStyle), intent(in) :: style
+        character(len=:), allocatable :: ansi_code
     
-        ! Print the text with the specified color
-        if (ansi_support) then ! ANSI support enabled, print text with color
-            write (*, '(A)') trim(color) // formatted_text // RESET
-        else ! ANSI support disabled, print text without color
-            write (*, '(A)') formatted_text
+        ansi_code = ""
+    
+        ! Append color codes
+        select case (trim(adjustl(style%color)))
+            case ("RED")
+                ansi_code = ansi_code // RED
+            case ("GREEN")
+                ansi_code = ansi_code // GREEN
+            case ("YELLOW")
+                ansi_code = ansi_code // YELLOW
+            case ("BLUE")
+                ansi_code = ansi_code // BLUE
+            case ("MAGENTA")
+                ansi_code = ansi_code // MAGENTA
+            case ("CYAN")
+                ansi_code = ansi_code // CYAN
+            case ("WHITE")
+                ansi_code = ansi_code // WHITE
+            case ("BLACK")
+                ansi_code = ansi_code // BLACK
+            case ("BRIGHT_RED")
+                ansi_code = ansi_code // BRIGHT_RED
+            case ("BRIGHT_GREEN")
+                ansi_code = ansi_code // BRIGHT_GREEN
+            case ("BRIGHT_YELLOW")
+                ansi_code = ansi_code // BRIGHT_YELLOW
+            case ("BRIGHT_BLUE")
+                ansi_code = ansi_code // BRIGHT_BLUE
+            case ("BRIGHT_MAGENTA")
+                ansi_code = ansi_code // BRIGHT_MAGENTA
+            case ("BRIGHT_CYAN")
+                ansi_code = ansi_code // BRIGHT_CYAN
+            case ("BRIGHT_WHITE")
+                ansi_code = ansi_code // BRIGHT_WHITE
+            case default
+                ansi_code = ansi_code // ""
+        end select
+    
+        ! Append background color codes only if specified
+        if (trim(style%bg_color) /= "") then
+            select case (trim(adjustl(style%bg_color)))
+                case ("BG_BLACK")
+                    ansi_code = ansi_code // BG_BLACK
+                case ("BG_RED")
+                    ansi_code = ansi_code // BG_RED
+                case ("BG_GREEN")
+                    ansi_code = ansi_code // BG_GREEN
+                case ("BG_YELLOW")
+                    ansi_code = ansi_code // BG_YELLOW
+                case ("BG_BLUE")
+                    ansi_code = ansi_code // BG_BLUE
+                case ("BG_MAGENTA")
+                    ansi_code = ansi_code // BG_MAGENTA
+                case ("BG_CYAN")
+                    ansi_code = ansi_code // BG_CYAN
+                case ("BG_WHITE")
+                    ansi_code = ansi_code // BG_WHITE
+                case ("BG_BRIGHT_BLACK")
+                    ansi_code = ansi_code // BG_BRIGHT_BLACK
+                case ("BG_BRIGHT_RED")
+                    ansi_code = ansi_code // BG_BRIGHT_RED
+                case ("BG_BRIGHT_GREEN")
+                    ansi_code = ansi_code // BG_BRIGHT_GREEN
+                case ("BG_BRIGHT_YELLOW")
+                    ansi_code = ansi_code // BG_BRIGHT_YELLOW
+                case ("BG_BRIGHT_BLUE")
+                    ansi_code = ansi_code // BG_BRIGHT_BLUE
+                case ("BG_BRIGHT_MAGENTA")
+                    ansi_code = ansi_code // BG_BRIGHT_MAGENTA
+                case ("BG_BRIGHT_CYAN")
+                    ansi_code = ansi_code // BG_BRIGHT_CYAN
+                case ("BG_BRIGHT_WHITE")
+                    ansi_code = ansi_code // BG_BRIGHT_WHITE
+                case default
+                    ansi_code = ansi_code // ""
+            end select
         end if
-    end subroutine print_colored
+    
+        ! Append style codes
+        if (style%bold) ansi_code = ansi_code // BOLD
+        if (style%italic) ansi_code = ansi_code // ITALIC
+        if (style%underline) ansi_code = ansi_code // UNDERLINE
+    end function create_ansi_code
+    
+
+    subroutine print_aligned(text, alignment, indent)
+        implicit none
+        character(len=*), intent(in) :: text
+        character(len=*), intent(in) :: alignment
+        integer, intent(in) :: indent
+        integer :: text_len, padding
+
+        text_len = len_trim(text)
+        padding = max(0, indent)
+
+        select case (alignment)
+            case ("left")
+                write(*, '(A)') repeat(' ', padding) // trim(text)
+            case ("center")
+                padding = (80 - text_len) / 2 + indent
+                write(*, '(A)') repeat(' ', padding) // trim(text)
+            case ("right")
+                padding = 80 - text_len + indent
+                write(*, '(A)') repeat(' ', padding) // trim(text)
+        end select
+    end subroutine print_aligned
+
+    subroutine print_bullet(text, bullet_char, indent)
+        implicit none
+        character(len=*), intent(in) :: text
+        character(len=1), intent(in), optional :: bullet_char
+        integer, intent(in), optional :: indent
+        character(len=1) :: bullet
+        integer :: ind
+
+        bullet = "*"
+        if (present(bullet_char)) bullet = bullet_char
+        ind = 4
+        if (present(indent)) ind = indent
+
+        write(*, '(A)') repeat(' ', ind) // bullet // " " // trim(text)
+    end subroutine print_bullet
 
 end module fort_colors_mod
+
+
+! Test the module
+program test_colors
+    use fort_colors_mod
+    implicit none
+
+    type(TextStyle) :: body_style
+
+    ! Initialize colors
+    call initialize_colors(.true.)
+
+    ! Test new preset styles
+    call print_styled("Error: File not found!", ERROR_STYLE)
+    call print_styled("Warning: Low disk space.", WARNING_STYLE)
+    call print_styled("Success: Operation completed successfully.", SUCCESS_STYLE)
+    call print_styled("The only way to do great work is to love what you do. - Steve Jobs", QUOTE_STYLE)
+    call print_styled("def example_function():", CODE_STYLE)
+    call print_styled("    print('Hello, World!')", CODE_STYLE)
+    call print_styled("Footer: Thank you for using our software!", FOOTER_STYLE)
+
+    ! Create a modifiable copy of BODY_STYLE for alignment changes
+    body_style = BODY_STYLE_CONST
+
+    ! Test alignment with body style
+    call print_styled("Left aligned text", body_style)
+
+    body_style%alignment = "center"
+    call print_styled("Center aligned text", body_style)
+
+    body_style%alignment = "right"
+    call print_styled("Right aligned text", body_style)
+end program test_colors
+
