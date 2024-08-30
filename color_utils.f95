@@ -214,7 +214,6 @@ contains
         if (style%italic) ansi_code = ansi_code // ITALIC
         if (style%underline) ansi_code = ansi_code // UNDERLINE
     end function create_ansi_code
-    
 
     subroutine print_aligned(text, alignment, indent)
         implicit none
@@ -254,8 +253,20 @@ contains
         write(*, '(A)') repeat(' ', ind) // bullet // " " // trim(text)
     end subroutine print_bullet
 
-end module fort_colors_mod
+    subroutine print_progress_bar(current, total)
+        implicit none
+        integer, intent(in) :: current, total
+        integer :: progress, i
+        character(len=50) :: bar
 
+        progress = int((real(current) / real(total)) * 50)
+        bar = repeat('=', progress) // repeat(' ', 50 - progress)
+        write(*, '(A)', advance="no") char(13)
+        write(*, '(A, I3, A, A, A)', advance="no") "[", progress * 2, "%] [", trim(bar), "]"
+        if (current < total) call flush(6)  ! Flush output to update the progress bar
+    end subroutine print_progress_bar
+
+end module fort_colors_mod
 
 ! Test the module
 program test_colors
@@ -263,6 +274,7 @@ program test_colors
     implicit none
 
     type(TextStyle) :: body_style
+    integer :: i
 
     ! Initialize colors
     call initialize_colors(.true.)
@@ -276,6 +288,13 @@ program test_colors
     call print_styled("    print('Hello, World!')", CODE_STYLE)
     call print_styled("Footer: Thank you for using our software!", FOOTER_STYLE)
 
+    ! Test the progress bar
+    do i = 1, 100
+        call print_progress_bar(i, 100)
+        call sleep(1)  ! Simulate some work with a delay
+    end do
+    write(*,*)  ! Move to a new line after the progress bar
+
     ! Create a modifiable copy of BODY_STYLE for alignment changes
     body_style = BODY_STYLE_CONST
 
@@ -288,4 +307,3 @@ program test_colors
     body_style%alignment = "right"
     call print_styled("Right aligned text", body_style)
 end program test_colors
-
