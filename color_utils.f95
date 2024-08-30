@@ -97,6 +97,43 @@ module fort_colors_mod
     type(TextStyle), parameter :: FOOTER_STYLE = TextStyle(color="BRIGHT_CYAN", &
         bg_color="", bold=.false., alignment="center")
 
+    ! Info style for general informational messages
+    type(TextStyle), parameter :: INFO_STYLE = TextStyle(color="CYAN", &
+        bg_color="", bold=.false., alignment="left")
+
+    ! Debug style for debug messages
+    type(TextStyle), parameter :: DEBUG_STYLE = TextStyle(color="BRIGHT_WHITE", &
+        bg_color="", italic=.true., alignment="left")
+
+    ! Input prompt style to prompt user input
+    type(TextStyle), parameter :: INPUT_PROMPT_STYLE = TextStyle(color="BRIGHT_YELLOW", &
+        bg_color="", bold=.true., alignment="left")
+
+    ! Highlight style for emphasizing important notes or key points
+    type(TextStyle), parameter :: HIGHLIGHT_STYLE = TextStyle(color="BRIGHT_WHITE", &
+        bg_color="BG_RED", bold=.true., alignment="center")
+
+    ! Link style for displaying clickable or hyperlinked text
+    type(TextStyle), parameter :: LINK_STYLE = TextStyle(color="BLUE", &
+        bg_color="", underline=.true., alignment="left")
+
+    ! Title highlight style with a background color
+    type(TextStyle), parameter :: TITLE_HIGHLIGHT_STYLE = TextStyle(color="WHITE", &
+        bg_color="BG_BLUE", bold=.true., alignment="center")
+
+    ! Disabled text style for options that are inactive
+    type(TextStyle), parameter :: DISABLED_TEXT_STYLE = TextStyle(color="DIM", &
+        bg_color="", italic=.true., alignment="left")
+
+    ! Subheading style for secondary headings or subtopics
+    type(TextStyle), parameter :: SUBHEADING_STYLE = TextStyle(color="BRIGHT_CYAN", &
+        bg_color="", bold=.true., underline=.false., alignment="left")
+
+    ! Shadowed text style for less emphasized text
+    type(TextStyle), parameter :: SHADOWED_TEXT_STYLE = TextStyle(color="BLACK", &
+        bg_color="", italic=.false., bold=.false., alignment="left")
+
+
 contains
 
     subroutine initialize_colors(enable_colors)
