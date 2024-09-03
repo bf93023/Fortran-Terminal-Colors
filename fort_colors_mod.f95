@@ -12,7 +12,6 @@ module fort_colors_mod
     character(len=*), parameter :: WHITE = char(27) // '[37m'
     character(len=*), parameter :: BLACK = char(27) // '[30m'
     character(len=*), parameter :: BRIGHT_RED = char(27) // '[91m'
-    character(len=*), parameter :: BRIGHT_GREEN = char(27) // '[92m'
     character(len=*), parameter :: BRIGHT_YELLOW = char(27) // '[93m'
     character(len=*), parameter :: BRIGHT_BLUE = char(27) // '[94m'
     character(len=*), parameter :: BRIGHT_MAGENTA = char(27) // '[95m'
@@ -84,9 +83,8 @@ module fort_colors_mod
     type(TextStyle), parameter :: WARNING_STYLE = TextStyle(color="YELLOW", &
         bg_color="", bold=.true., alignment="left")
 
-    type(TextStyle), parameter :: SUCCESS_STYLE = TextStyle(color="BRIGHT_GREEN", &
+    type(TextStyle), parameter :: SUCCESS_STYLE = TextStyle(color="GREEN", &
         bg_color="", bold=.true., alignment="left")
-
     type(TextStyle), parameter :: QUOTE_STYLE = TextStyle(color="MAGENTA", &
         bg_color="", italic=.true., alignment="left", indent=2)
 
@@ -194,8 +192,6 @@ module fort_colors_mod
                 ansi_code = ansi_code // BLACK
             case ("BRIGHT_RED")
                 ansi_code = ansi_code // BRIGHT_RED
-            case ("BRIGHT_GREEN")
-                ansi_code = ansi_code // BRIGHT_GREEN
             case ("BRIGHT_YELLOW")
                 ansi_code = ansi_code // BRIGHT_YELLOW
             case ("BRIGHT_BLUE")
