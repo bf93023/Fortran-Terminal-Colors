@@ -307,106 +307,6 @@ module fort_colors_mod
         if (current < total) call flush(6)  ! Flush output to update the progress bar
     end subroutine print_progress_bar
 
-    ! subroutine print_matrix(matrix, rows, cols, style, number_style, precision, use_scientific)
-    !     implicit none
-    !     real, dimension(:, :), intent(in) :: matrix
-    !     integer, intent(in) :: rows, cols
-    !     type(TextStyle), intent(in) :: style, number_style
-    !     integer, intent(in) :: precision
-    !     logical, intent(in) :: use_scientific
-    !     integer :: i, j
-    !     character(len=30) :: element_str
-    !     character(len=500) :: row_str  ! A buffer to hold an entire row for printing
-    !     integer :: total_width
-    !     character(len=30) :: format_string
-    !     character(len=3) :: precision_str
-    !     integer, dimension(:), allocatable :: max_width_per_column
-    !     integer :: column_width
-    
-    !     ! Detect if matrix is empty
-    !     if (rows == 0 .or. cols == 0) then
-    !         call print_styled("Empty matrix", style)
-    !         return
-    !     end if
-    
-    !     ! Convert precision to a character string for format creation
-    !     write(precision_str, '(I0)') precision
-    
-    !     ! Determine the format string based on user specifications
-    !     if (use_scientific) then
-    !         ! Scientific format: 'Ew.d' where 'w' is the width and 'd' is the number of decimal places
-    !         column_width = precision + 8  ! Width for scientific notation (1 digit, decimal, precision, exponent)
-    !         write(format_string, '(A, I2.2, A, I0, A)') '(E', column_width, '.', precision, ')'
-    !     else
-    !         ! Normal float format: 'Fw.d' where 'w' is the width and 'd' is the number of decimal places
-    !         column_width = precision + 5  ! Accounts for negative sign, digits before the decimal, decimal point, digits after
-    !         write(format_string, '(A, I2.2, A, I0, A)') '(F', column_width, '.', precision, ')'
-    !     end if
-    
-    !     ! Allocate array to store maximum width per column
-    !     allocate(max_width_per_column(cols))
-    !     max_width_per_column = 0
-    
-    !     ! Find the maximum width of any formatted matrix element for each column
-    !     do j = 1, cols
-    !         do i = 1, rows
-    !             if (matrix(i, j) /= matrix(i, j)) then
-    !                 ! Handle NaN
-    !                 element_str = 'NaN'
-    !             else if (matrix(i, j) > 1.0E38) then
-    !                 ! Handle Infinity
-    !                 element_str = 'Inf'
-    !             else if (matrix(i, j) < -1.0E38) then
-    !                 ! Handle -Infinity
-    !                 element_str = '-Inf'
-    !             else
-    !                 ! Handle regular numbers
-    !                 write(element_str, format_string) matrix(i, j)
-    !             end if
-    !             max_width_per_column(j) = max(max_width_per_column(j), len_trim(adjustl(element_str)))
-    !         end do
-    !     end do
-    
-    !     ! Calculate the total width of the matrix including borders
-    !     total_width = sum(max_width_per_column) + (cols - 1) + 4  ! Correct total width calculation: sum of column widths + spaces + borders
-    
-    !     ! Print the top border
-    !     call print_styled("+" // repeat("-", total_width - 2) // "+", style)
-    
-    !     ! Print the matrix contents, row by row
-    !     do i = 1, rows
-    !         row_str = "|"
-    !         do j = 1, cols
-    !             if (matrix(i, j) /= matrix(i, j)) then
-    !                 ! Handle NaN
-    !                 element_str = 'NaN'
-    !             else if (matrix(i, j) > 1.0E16) then
-    !                 ! Handle Infinity
-    !                 element_str = 'Inf'
-    !             else if (matrix(i, j) < -1.0E16) then
-    !                 ! Handle -Infinity
-    !                 element_str = '-Inf'
-    !             else
-    !                 ! Handle regular numbers
-    !                 write(element_str, format_string) matrix(i, j)
-    !             end if
-    
-    !             ! Right-align each element based on the maximum width of its column
-    !             row_str = trim(row_str) // " " // repeat(' ', max_width_per_column(j)&
-    !              - len_trim(adjustl(element_str))) // trim(adjustl(element_str))
-    !         end do
-    !         row_str = trim(row_str) // " |"
-    !         call print_styled(trim(row_str), number_style)
-    !     end do
-    
-    !     ! Print the bottom border
-    !     call print_styled("+" // repeat("-", total_width - 2) // "+", style)
-    !     call print_styled("", style)  ! Move to the next line
-    
-    !     ! Deallocate the array
-    !     deallocate(max_width_per_column)
-    ! end subroutine print_matrix
-
     ! Subroutine for single precision (real(kind=4))
     subroutine print_matrix_single(matrix, rows, cols, style, number_style, precision, use_scientific)
         implicit none
@@ -574,6 +474,5 @@ module fort_colors_mod
     
         deallocate(max_width_per_column)
     end subroutine print_matrix_double
-
 
 end module fort_colors_mod
