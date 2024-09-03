@@ -303,4 +303,248 @@ contains
         if (current < total) call flush(6)  ! Flush output to update the progress bar
     end subroutine print_progress_bar
 
+    subroutine print_matrix(matrix, rows, cols, style, number_style, precision, use_scientific)
+        implicit none
+        real, dimension(:, :), intent(in) :: matrix
+        integer, intent(in) :: rows, cols
+        type(TextStyle), intent(in) :: style, number_style
+        integer, intent(in) :: precision
+        logical, intent(in) :: use_scientific
+        integer :: i, j
+        character(len=30) :: element_str
+        character(len=500) :: row_str  ! A buffer to hold an entire row for printing
+        integer :: total_width
+        character(len=30) :: format_string
+        character(len=3) :: precision_str
+        integer, dimension(:), allocatable :: max_width_per_column
+        integer :: column_width
+    
+        ! Detect if matrix is empty
+        if (rows == 0 .or. cols == 0) then
+            call print_styled("Empty matrix", style)
+            return
+        end if
+    
+        ! Convert precision to a character string for format creation
+        write(precision_str, '(I0)') precision
+    
+        ! Determine the format string based on user specifications
+        if (use_scientific) then
+            ! Scientific format: 'Ew.d' where 'w' is the width and 'd' is the number of decimal places
+            column_width = precision + 8  ! Width for scientific notation (1 digit, decimal, precision, exponent)
+            write(format_string, '(A, I2.2, A, I0, A)') '(E', column_width, '.', precision, ')'
+        else
+            ! Normal float format: 'Fw.d' where 'w' is the width and 'd' is the number of decimal places
+            column_width = precision + 5  ! Accounts for negative sign, digits before the decimal, decimal point, digits after
+            write(format_string, '(A, I2.2, A, I0, A)') '(F', column_width, '.', precision, ')'
+        end if
+    
+        ! Allocate array to store maximum width per column
+        allocate(max_width_per_column(cols))
+        max_width_per_column = 0
+    
+        ! Find the maximum width of any formatted matrix element for each column
+        do j = 1, cols
+            do i = 1, rows
+                if (matrix(i, j) /= matrix(i, j)) then
+                    ! Handle NaN
+                    element_str = 'NaN'
+                else if (matrix(i, j) > 1.0E38) then
+                    ! Handle Infinity
+                    element_str = 'Inf'
+                else if (matrix(i, j) < -1.0E38) then
+                    ! Handle -Infinity
+                    element_str = '-Inf'
+                else
+                    ! Handle regular numbers
+                    write(element_str, format_string) matrix(i, j)
+                end if
+                max_width_per_column(j) = max(max_width_per_column(j), len_trim(adjustl(element_str)))
+            end do
+        end do
+    
+        ! Calculate the total width of the matrix including borders
+        total_width = sum(max_width_per_column) + (cols - 1) + 4  ! Correct total width calculation: sum of column widths + spaces + borders
+    
+        ! Print the top border
+        call print_styled("+" // repeat("-", total_width - 2) // "+", style)
+    
+        ! Print the matrix contents, row by row
+        do i = 1, rows
+            row_str = "|"
+            do j = 1, cols
+                if (matrix(i, j) /= matrix(i, j)) then
+                    ! Handle NaN
+                    element_str = 'NaN'
+                else if (matrix(i, j) > 1.0E16) then
+                    ! Handle Infinity
+                    element_str = 'Inf'
+                else if (matrix(i, j) < -1.0E16) then
+                    ! Handle -Infinity
+                    element_str = '-Inf'
+                else
+                    ! Handle regular numbers
+                    write(element_str, format_string) matrix(i, j)
+                end if
+    
+                ! Right-align each element based on the maximum width of its column
+                row_str = trim(row_str) // " " // repeat(' ', max_width_per_column(j)&
+                 - len_trim(adjustl(element_str))) // trim(adjustl(element_str))
+            end do
+            row_str = trim(row_str) // " |"
+            call print_styled(trim(row_str), number_style)
+        end do
+    
+        ! Print the bottom border
+        call print_styled("+" // repeat("-", total_width - 2) // "+", style)
+        call print_styled("", style)  ! Move to the next line
+    
+        ! Deallocate the array
+        deallocate(max_width_per_column)
+    end subroutine print_matrix
+
+
+
+    
 end module fort_colors_mod
+
+
+! Program to demo print_Matrix subroutine
+program matrix_demo
+    use fort_colors_mod, only: TextStyle, print_matrix, &
+    print_styled, print_bullet, print_progress_bar, BODY_STYLE_CONST, &
+    SUCCESS_STYLE, ERROR_STYLE, HEADING_STYLE, TITLE_STYLE, FOOTER_STYLE, &
+    CODE_STYLE, WARNING_STYLE, INFO_STYLE, SUBTITLE_STYLE
+    implicit none
+
+    ! Define matrices for different test cases
+    real, dimension(3, 3) :: matrix_normal
+    real, dimension(0, 3) :: matrix_empty_rows
+    real, dimension(3, 0) :: matrix_empty_cols
+    real, dimension(1, 1) :: matrix_single
+    real, dimension(3, 3) :: matrix_large
+    real, dimension(3, 3) :: matrix_small
+    real, dimension(3, 3) :: matrix_mixed_signs
+    real, dimension(3, 3) :: matrix_high_precision
+    real, dimension(3, 3) :: matrix_special_values
+    integer :: i, j
+    type(TextStyle) :: border_style, number_style
+    integer :: precision
+    logical :: use_scientific
+
+    ! Initialize the normal matrix
+    do i = 1, 3
+        do j = 1, 3
+            matrix_normal(i, j) = real(i + j, kind=4)
+        end do
+    end do
+
+    ! Initialize single element matrix
+    matrix_single(1, 1) = 42.0
+
+    ! Initialize large numbers matrix
+    matrix_large = 1.0e10
+
+    ! Initialize small numbers matrix (positive and negative)
+    matrix_small = 1.0e-10
+    matrix_small(1, 1) = -1.0e-10
+
+    ! Initialize mixed positive and negative numbers matrix
+    matrix_mixed_signs(1, :) = [1.0, -2.0, 3.0]
+    matrix_mixed_signs(2, :) = [-4.0, 5.0, -6.0]
+    matrix_mixed_signs(3, :) = [7.0, -8.0, 9.0]
+
+    ! Initialize high precision numbers matrix
+    matrix_high_precision = 1.123456789012345
+
+    ! Initialize special values matrix (NaN and Infinity)
+    matrix_special_values = 0.0
+    matrix_special_values(1, 1) = 1.0 / 0.000000000000000000001        ! Infinity
+    matrix_special_values(1, 2) = -1.0 / 0.000000000000000000001       ! -Infinity
+    matrix_special_values(1, 3) = 0.0 / 0.000000000000000000001        ! NaN
+
+    ! Define styles for borders and numbers using the module's predefined styles
+    border_style = BODY_STYLE_CONST     ! Use the BODY_STYLE_CONST for borders
+    number_style = SUCCESS_STYLE        ! Use the SUCCESS_STYLE for numbers
+
+    ! Print Title
+    call print_styled("Matrix Demonstration Program", TITLE_STYLE)
+    call print_styled("=========================================", FOOTER_STYLE)
+
+    ! Introduction
+    call print_styled("Welcome to the Matrix Demonstration Program.", HEADING_STYLE)
+    call print_styled("This program showcases various features such as matrix printing, text styling, and more.", BODY_STYLE_CONST)
+    call print_styled("Let's explore some mathematical operations and representations!", BODY_STYLE_CONST)
+
+    ! 1. Normal matrix with normal notation
+    precision = 2
+    use_scientific = .false.
+    call print_styled("1. Normal matrix with normal notation:", SUBTITLE_STYLE)
+    call print_matrix(matrix_normal, 3, 3, border_style, number_style, precision, use_scientific)
+
+    ! 2. Empty matrix with zero rows
+    call print_styled("2. Empty matrix with zero rows:", SUBTITLE_STYLE)
+    call print_matrix(matrix_empty_rows, 0, 3, border_style, number_style, precision, use_scientific)
+
+    ! 3. Empty matrix with zero columns
+    call print_styled("3. Empty matrix with zero columns:", SUBTITLE_STYLE)
+    call print_matrix(matrix_empty_cols, 3, 0, border_style, number_style, precision, use_scientific)
+
+    ! 4. Single element matrix
+    call print_styled("4. Single element matrix:", SUBTITLE_STYLE)
+    call print_matrix(matrix_single, 1, 1, border_style, number_style, precision, use_scientific)
+
+    ! 5. Large numbers matrix with scientific notation
+    precision = 4
+    use_scientific = .true.
+    call print_styled("5. Matrix with large numbers (scientific notation):", SUBTITLE_STYLE)
+    call print_matrix(matrix_large, 3, 3, border_style, number_style, precision, use_scientific)
+
+    ! 6. Small numbers matrix with scientific notation
+    call print_styled("6. Matrix with small numbers (scientific notation):", SUBTITLE_STYLE)
+    call print_matrix(matrix_small, 3, 3, border_style, number_style, precision, use_scientific)
+
+    ! 7. Mixed positive and negative numbers matrix
+    use_scientific = .false.
+    call print_styled("7. Matrix with mixed positive and negative numbers:", SUBTITLE_STYLE)
+    call print_matrix(matrix_mixed_signs, 3, 3, border_style, number_style, precision, use_scientific)
+
+    ! 8. High precision numbers matrix
+    precision = 10
+    call print_styled("8. Matrix with high precision numbers:", SUBTITLE_STYLE)
+    call print_matrix(matrix_high_precision, 3, 3, border_style, number_style, precision, use_scientific)
+
+    ! 9. Matrix with special values (NaN, Infinity)
+    precision = 2
+    use_scientific = .false.
+    call print_styled("9. Matrix with special values (NaN, Infinity):", SUBTITLE_STYLE)
+    call print_matrix(matrix_special_values, 3, 3, border_style, number_style, precision, use_scientific)
+
+    ! Demonstrating Other Text Features
+    call print_styled("Demonstrating Text Styles", HEADING_STYLE)
+    call print_styled("This text is styled as a warning.", WARNING_STYLE)
+    call print_styled("This text is styled as an error message.", ERROR_STYLE)
+    call print_styled("This text represents a successful operation.", SUCCESS_STYLE)
+    call print_styled("Here is some code: ", HEADING_STYLE)
+    call print_styled("print *, 'Hello, World!'", CODE_STYLE)
+
+    ! Demonstrating Bullet Points
+    call print_styled("Key Features of this Program:", HEADING_STYLE)
+    call print_bullet("Matrix printing with customizable styles")
+    call print_bullet("Supports different numeric formats and precisions")
+    call print_bullet("Handles special values like NaN and Infinity")
+    call print_bullet("ANSI text styling for different output formats")
+
+    ! Demonstrating Progress Bar
+    call print_styled("Processing data... please wait.", INFO_STYLE)
+    do i = 1, 100
+        call print_progress_bar(i, 100)
+    end do
+    call print_styled("Processing complete!", SUCCESS_STYLE)
+
+    ! Footer
+    call print_styled("Thank you for using the Matrix Demonstration Program.", FOOTER_STYLE)
+    call print_styled("=========================================", FOOTER_STYLE)
+
+end program matrix_demo
+
