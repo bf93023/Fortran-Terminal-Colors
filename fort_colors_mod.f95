@@ -132,8 +132,8 @@ module fort_colors_mod
         bg_color="", italic=.false., bold=.false., alignment="left")
 
     ! Generic interface for print_matrix
-        interface print_matrix
-        module procedure print_matrix_single, print_matrix_double
+    interface print_matrix
+        module procedure print_matrix_single, print_matrix_double, print_matrix_quadruple
     end interface print_matrix
 
     contains
@@ -254,8 +254,8 @@ module fort_colors_mod
 
     subroutine print_aligned(text, alignment, indent)
         implicit none
-        character(len=*), intent(in) :: text
-        character(len=*), intent(in) :: alignment
+        character(len=*), intent(in), optional :: text
+        character(len=*), intent(in), optional :: alignment
         integer, intent(in) :: indent
         integer :: text_len, padding
 
@@ -470,5 +470,89 @@ module fort_colors_mod
     
         deallocate(max_width_per_column)
     end subroutine print_matrix_double
+
+    ! Subroutine for quadruple precision (real(kind=16))
+    subroutine print_matrix_quadruple(matrix, rows, cols, style, number_style, precision, use_scientific)
+        implicit none
+        real(kind=16), dimension(:, :), intent(in) :: matrix
+        integer, intent(in) :: rows, cols
+        type(TextStyle), intent(in) :: style, number_style
+        integer, intent(in) :: precision
+        logical, intent(in) :: use_scientific
+        integer :: i, j
+        character(len=30) :: element_str
+        character(len=500) :: row_str
+        integer :: total_width
+        character(len=30) :: format_string
+        character(len=3) :: precision_str
+        integer, dimension(:), allocatable :: max_width_per_column
+        integer :: column_width
+
+        ! Detect if matrix is empty
+        if (rows == 0 .or. cols == 0) then
+            call print_styled("Empty matrix", style)
+            return
+        end if
+
+        ! Convert precision to a character string for format creation
+        write(precision_str, '(I0)') precision
+
+        ! Determine the format string based on user specifications
+        if (use_scientific) then
+            column_width = precision + 8
+            write(format_string, '(A, I2.2, A, I0, A)') '(E', column_width, '.', precision, ')'
+        else
+            column_width = precision + 5
+            write(format_string, '(A, I2.2, A, I0, A)') '(F', column_width, '.', precision, ')'
+        end if
+
+        allocate(max_width_per_column(cols))
+        max_width_per_column = 0
+
+        ! Find the maximum width of any formatted matrix element for each column
+        do j = 1, cols
+            do i = 1, rows
+                if (matrix(i, j) /= matrix(i, j)) then
+                    element_str = 'NaN'
+                else if (matrix(i, j) > 1.0E308_16) then
+                    element_str = 'Inf'
+                else if (matrix(i, j) < -1.0E308_16) then
+                    element_str = '-Inf'
+                else
+                    write(element_str, format_string) matrix(i, j)
+                end if
+                max_width_per_column(j) = max(max_width_per_column(j), len_trim(adjustl(element_str)))
+            end do
+        end do
+
+        total_width = sum(max_width_per_column) + (cols - 1) + 4
+
+        call print_styled("+" // repeat("-", total_width - 2) // "+", style)
+
+        do i = 1, rows
+            row_str = "|"
+            do j = 1, cols
+                if (matrix(i, j) /= matrix(i, j)) then
+                    element_str = 'NaN'
+                else if (matrix(i, j) > 1.0E16_16) then
+                    element_str = 'Inf'
+                else if (matrix(i, j) < -1.0E16_16) then
+                    element_str = '-Inf'
+                else
+                    write(element_str, format_string) matrix(i, j)
+                end if
+
+                row_str = trim(row_str) // " " // repeat(' ', max_width_per_column(j) &
+                - len_trim(adjustl(element_str))) // trim(adjustl(element_str))
+            end do
+            row_str = trim(row_str) // " |"
+            call print_styled(trim(row_str), number_style)
+        end do
+
+        call print_styled("+" // repeat("-", total_width - 2) // "+", style)
+        call print_styled("", style)
+
+        deallocate(max_width_per_column)
+    end subroutine print_matrix_quadruple
 
 end module fort_colors_mod
