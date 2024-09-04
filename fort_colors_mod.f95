@@ -1,3 +1,4 @@
+
 module fort_colors_mod
     implicit none
 
@@ -133,7 +134,8 @@ module fort_colors_mod
 
     ! Generic interface for print_matrix
     interface print_matrix
-        module procedure print_matrix_single, print_matrix_double, print_matrix_quadruple
+        module procedure print_matrix_single, print_matrix_double, &
+            print_matrix_quadruple, print_matrix_complex
     end interface print_matrix
 
     contains
@@ -554,5 +556,4 @@ module fort_colors_mod
 
         deallocate(max_width_per_column)
     end subroutine print_matrix_quadruple
-
 end module fort_colors_mod
