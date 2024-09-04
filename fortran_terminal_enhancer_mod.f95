@@ -135,7 +135,7 @@ module fortran_terminal_enhancer_mod
     ! Generic interface for print_matrix
     interface print_matrix
         module procedure print_matrix_single, print_matrix_double, &
-            print_matrix_quadruple, print_matrix_complex
+            print_matrix_quadruple
     end interface print_matrix
 
     contains
