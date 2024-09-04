@@ -1,5 +1,5 @@
 
-module fort_colors_mod
+module fortran_terminal_enhancer_mod
     implicit none
 
     ! ANSI escape codes for text colors
@@ -556,4 +556,4 @@ module fort_colors_mod
 
         deallocate(max_width_per_column)
     end subroutine print_matrix_quadruple
-end module fort_colors_mod
+end module fortran_terminal_enhancer_mod
