@@ -475,8 +475,4 @@ module fort_colors_mod
     
         deallocate(max_width_per_column)
     end subroutine print_matrix_double
-
-    ! Test comment
-    ! Another
-    ! Another another
 end module fort_colors_mod
