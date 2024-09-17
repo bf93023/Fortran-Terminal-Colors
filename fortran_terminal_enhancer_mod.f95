@@ -133,6 +133,13 @@ module fortran_terminal_enhancer_mod
     ! Style used for plotting
     type(TextStyle), parameter :: PLOT_STYLE = TextStyle(color="BRIGHT_WHITE", &
         bg_color="", bold=.false., alignment="left")
+
+    type :: DataSeries
+        real, allocatable :: x(:)
+        real, allocatable :: y(:)
+        character(len=1) :: symbol = '*'
+        type(TextStyle) :: style = PLOT_STYLE
+    end type DataSeries
  
     ! Generic interface for print_matrix
     interface print_matrix
@@ -560,51 +567,75 @@ module fortran_terminal_enhancer_mod
         deallocate(max_width_per_column)
     end subroutine print_matrix_quadruple
 
-    ! Plot Terminal
-    subroutine plot_terminal(x, y, style, x_label, y_label)
+    subroutine print_styled_character(char, style)
         implicit none
-        real, intent(in) :: x(:), y(:)
-        type(TextStyle), intent(in), optional :: style
+        character(len=1), intent(in) :: char
+        type(TextStyle), intent(in) :: style
+        character(len=:), allocatable :: formatted_char
+
+        ! Generate ANSI codes based on style
+        if (ansi_support) then
+            formatted_char = create_ansi_code(style) // char // RESET
+        else
+            formatted_char = char
+        end if
+
+        ! Write the character without advancing to a new line
+        write(*, '(A)', advance='no') formatted_char
+    end subroutine print_styled_character
+
+    ! Plot Terminal
+    subroutine plot_terminal(series_array, x_label, y_label)
+        implicit none
+        type(DataSeries), intent(in) :: series_array(:)
         character(len=*), intent(in), optional :: x_label, y_label
     
         ! Local variables
-        integer :: n_points, i, j
-        real :: x_min, x_max, y_min, y_max, y_value, x_value
+        integer :: n_series, i, j, k
+        real :: x_min, x_max, y_min, y_max, y_value
         integer, parameter :: plot_width = 70
         integer, parameter :: plot_height = 20
         integer, parameter :: label_width = 10
         character(len=plot_width) :: grid(plot_height)
-        character(len=plot_width + label_width) :: grid_line
         character(len=label_width - 2) :: y_label_string
-        character(len=plot_width + label_width) :: x_axis_line
-        integer :: grid_x, grid_y
+        type(TextStyle), allocatable :: grid_style(:,:)
         type(TextStyle) :: plot_style
-        integer :: x_label_pos, num_x_ticks
+        real :: x_series_min, x_series_max, y_series_min, y_series_max
         character(len=:), allocatable :: x_label_padded, y_label_padded
+        integer :: grid_x, grid_y
+        integer :: num_x_ticks
         real, allocatable :: x_ticks(:)
         character(len=10) :: x_tick_label
         integer :: tick_positions(plot_width)
-        integer :: tick_length
+        integer :: x_label_pos, tick_length
     
-        ! Initialize plot_style
-        if (present(style)) then
-            plot_style = style
-        else
-            plot_style = PLOT_STYLE
-        end if
+        ! Number of data series
+        n_series = size(series_array)
     
-        ! Check that x and y arrays have the same size
-        n_points = size(x)
-        if (size(y) /= n_points) then
-            call print_styled("Error: x and y arrays must have the same size.", ERROR_STYLE)
-            return
-        end if
+        ! Initialize plot_style (use the style of the first series as default)
+        plot_style = series_array(1)%style
     
-        ! Determine x_min, x_max, y_min, y_max
-        x_min = minval(x)
-        x_max = maxval(x)
-        y_min = minval(y)
-        y_max = maxval(y)
+        ! Initialize x_min, x_max, y_min, y_max
+        x_min = huge(0.0)
+        x_max = -huge(0.0)
+        y_min = huge(0.0)
+        y_max = -huge(0.0)
+    
+        ! Determine global x_min, x_max, y_min, y_max across all series
+        do i = 1, n_series
+            if (size(series_array(i)%x) /= size(series_array(i)%y)) then
+                call print_styled("Error: x and y arrays in each series must have the same size.", ERROR_STYLE)
+                return
+            end if
+            x_series_min = minval(series_array(i)%x)
+            x_series_max = maxval(series_array(i)%x)
+            y_series_min = minval(series_array(i)%y)
+            y_series_max = maxval(series_array(i)%y)
+            x_min = min(x_min, x_series_min)
+            x_max = max(x_max, x_series_max)
+            y_min = min(y_min, y_series_min)
+            y_max = max(y_max, y_series_max)
+        end do
     
         ! Handle the case where x_max == x_min or y_max == y_min
         if (x_max == x_min) then
@@ -616,26 +647,31 @@ module fortran_terminal_enhancer_mod
             y_max = y_max + 1.0
         end if
     
-        ! Initialize grid
+        ! Initialize grid and grid_style
         grid = repeat(' ', plot_width)
+        allocate(grid_style(plot_height, plot_width))
+        grid_style(:,:) = plot_style  ! Initialize with default plot_style
     
-        ! Plot data points onto the grid
-        do i = 1, n_points
-            grid_x = int( ( (x(i) - x_min) / (x_max - x_min) ) * (plot_width - 1) ) + 1
-            grid_y = int( ( (y(i) - y_min) / (y_max - y_min) ) * (plot_height - 1) ) + 1
-            grid_y = plot_height - grid_y + 1  ! Invert y-axis for terminal output
+        ! Plot data points for each series onto the grid
+        do i = 1, n_series
+            do j = 1, size(series_array(i)%x)
+                grid_x = int( ( (series_array(i)%x(j) - x_min) / (x_max - x_min) ) * (plot_width - 1) ) + 1
+                grid_y = int( ( (series_array(i)%y(j) - y_min) / (y_max - y_min) ) * (plot_height - 1) ) + 1
+                grid_y = plot_height - grid_y + 1  ! Invert y-axis for terminal output
     
-            ! Ensure grid_x and grid_y are within bounds
-            grid_x = max(1, min(grid_x, plot_width))
-            grid_y = max(1, min(grid_y, plot_height))
+                ! Ensure grid_x and grid_y are within bounds
+                grid_x = max(1, min(grid_x, plot_width))
+                grid_y = max(1, min(grid_y, plot_height))
     
-            ! Set the grid point to '*'
-            grid(grid_y)(grid_x:grid_x) = '*'
+                ! Set the grid point to the series symbol
+                grid(grid_y)(grid_x:grid_x) = series_array(i)%symbol
+                ! Set the style for this grid point
+                grid_style(grid_y, grid_x) = series_array(i)%style
+            end do
         end do
     
         ! Print y-axis label if provided
         if (present(y_label)) then
-            ! Since vertical text is impractical in the terminal, print the y-label above the plot
             y_label_padded = adjustl(y_label)
             call print_styled(' ' // trim(y_label_padded), plot_style)
         end if
@@ -646,17 +682,20 @@ module fortran_terminal_enhancer_mod
             y_value = y_max - ( (grid_y - 1) / real(plot_height - 1) ) * (y_max - y_min)
             write(y_label_string, '(F8.2)') y_value
     
-            ! Construct the grid line with the y-axis label
-            grid_line = ''
-            grid_line(1:label_width - 2) = adjustl(y_label_string)
-            grid_line(label_width - 1:label_width) = ' |'
-            grid_line((label_width + 1):(label_width + plot_width)) = grid(grid_y)
-            call print_styled(trim(grid_line), plot_style)
+            ! Print y-axis label and separator
+            write(*,'(A)', advance='no') adjustl(y_label_string) // ' |'
+    
+            ! Print the grid line with styles
+            do k = 1, plot_width
+                call print_styled_character(grid(grid_y)(k:k), grid_style(grid_y,k))
+            end do
+    
+            ! End the line
+            write(*,*)
         end do
     
         ! Print x-axis line
-        x_axis_line = repeat(' ', label_width - 2) // ' +-' // repeat('-', plot_width)
-        call print_styled(x_axis_line, plot_style)
+        call print_styled(repeat(' ', label_width - 2) // ' +-' // repeat('-', plot_width), plot_style)
     
         ! Determine the number of x-axis ticks (avoiding overlap)
         num_x_ticks = int(plot_width / 15)
@@ -667,18 +706,13 @@ module fortran_terminal_enhancer_mod
             x_ticks(i) = x_min + (i - 1) * (x_max - x_min) / (num_x_ticks - 1)
         end do
     
-        ! Initialize tick positions
-        tick_positions = 0
-    
         ! Prepare x-axis labels
         x_axis_line = repeat(' ', label_width - 2) // '  ' // repeat(' ', plot_width)
         do i = 1, num_x_ticks
             grid_x = int( ( (x_ticks(i) - x_min) / (x_max - x_min) ) * (plot_width - 1) ) + 1
             grid_x = max(1, min(grid_x, plot_width))
-            tick_positions(grid_x) = 1
             write(x_tick_label, '(F7.2)') x_ticks(i)
             tick_length = len_trim(adjustl(x_tick_label))
-            ! Ensure the label fits within the plot width
             if (label_width + grid_x + tick_length - 1 <= label_width + plot_width) then
                 x_axis_line(label_width + grid_x : label_width + grid_x + tick_length - 1) = adjustl(x_tick_label)
             end if
@@ -689,36 +723,63 @@ module fortran_terminal_enhancer_mod
     
         ! Print x-axis label if provided
         if (present(x_label)) then
-            ! Center the x_label under the plot
             x_label_padded = adjustl(x_label)
             x_label_pos = label_width + (plot_width - len_trim(x_label_padded)) / 2
-            grid_line = repeat(' ', x_label_pos) // trim(x_label_padded)
-            call print_styled(grid_line, plot_style)
+            call print_styled(repeat(' ', x_label_pos) // trim(x_label_padded), plot_style)
         end if
     
         deallocate(x_ticks)
-    
+        deallocate(grid_style)
     end subroutine plot_terminal
+    
+    
       
     
 end module fortran_terminal_enhancer_mod
 
 
-program test_plot
+program test_plot_multiple_series
     use fortran_terminal_enhancer_mod
     implicit none
 
-    real, allocatable :: x(:), y(:)
-    integer :: n, i
+    type(DataSeries), allocatable :: series_array(:)
+    integer :: n, n_series, i
 
-    ! Initialize your data
+    ! Number of data points
     n = 100
-    allocate(x(n), y(n))
-    x = [(i, i = 1, n)] / 10.0  ! x from 0 to 10
-    y = sin(x)
 
-    ! Plot the data with labels
-    call plot_terminal(x, y, x_label="X-axis (Time)", y_label="Y-axis (Amplitude)")
-end program test_plot
+    ! Number of data series
+    n_series = 3
+    allocate(series_array(n_series))
 
+    ! Series 1: y = sin(x)
+    allocate(series_array(1)%x(n), series_array(1)%y(n))
+    series_array(1)%x = [(i, i = 1, n)] / 10.0
+    series_array(1)%y = sin(series_array(1)%x)
+    series_array(1)%symbol = '*'
+    series_array(1)%style = TextStyle(color="RED")
 
+    ! Series 2: y = cos(x)
+    allocate(series_array(2)%x(n), series_array(2)%y(n))
+    series_array(2)%x = [(i, i = 1, n)] / 10.0
+    series_array(2)%y = cos(series_array(2)%x)
+    series_array(2)%symbol = '+'
+    series_array(2)%style = TextStyle(color="GREEN")
+
+    ! Series 3: y = sin(x) * cos(x)
+    allocate(series_array(3)%x(n), series_array(3)%y(n))
+    series_array(3)%x = [(i, i = 1, n)] / 10.0
+    series_array(3)%y = sin(series_array(3)%x) * cos(series_array(3)%x)
+    series_array(3)%symbol = 'o'
+    series_array(3)%style = TextStyle(color="BLUE")
+
+    ! Plot the data series
+    call plot_terminal(series_array, x_label="X-axis (Time)", y_label="Y-axis (Value)")
+
+    ! Deallocate arrays
+    do i = 1, n_series
+        deallocate(series_array(i)%x, series_array(i)%y)
+    end do
+    deallocate(series_array)
+
+end program test_plot_multiple_series
