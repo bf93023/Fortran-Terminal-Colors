@@ -714,10 +714,11 @@ program test_plot
     ! Initialize your data
     n = 100
     allocate(x(n), y(n))
-    x = [(i, i = 1, n)] / 10.0
+    x = [(i, i = 1, n)] / 10.0  ! x from 0 to 10
     y = sin(x)
 
     ! Plot the data with labels
     call plot_terminal(x, y, x_label="X-axis (Time)", y_label="Y-axis (Amplitude)")
 end program test_plot
+
 
