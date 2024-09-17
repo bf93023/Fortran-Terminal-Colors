@@ -130,12 +130,16 @@ module fortran_terminal_enhancer_mod
     ! Shadowed text style for less emphasized text
     type(TextStyle), parameter :: SHADOWED_TEXT_STYLE = TextStyle(color="BLACK", &
         bg_color="", italic=.false., bold=.false., alignment="left")
-
+    ! Style used for plotting
+    type(TextStyle), parameter :: PLOT_STYLE = TextStyle(color="BRIGHT_WHITE", &
+        bg_color="", bold=.false., alignment="left")
+ 
     ! Generic interface for print_matrix
     interface print_matrix
         module procedure print_matrix_single, print_matrix_double, &
             print_matrix_quadruple
     end interface print_matrix
+
 
     contains
 
@@ -304,7 +308,7 @@ module fortran_terminal_enhancer_mod
         if (current < total) call flush(6)  ! Flush output to update the progress bar
     end subroutine print_progress_bar
 
-    ! Subroutine for single precision (real(kind=4))
+    ! Print matrix with single precision (real(kind=4))
     subroutine print_matrix_single(matrix, rows, cols, style, number_style, precision, use_scientific)
         implicit none
         real(kind=4), dimension(:, :), intent(in) :: matrix
@@ -388,7 +392,7 @@ module fortran_terminal_enhancer_mod
         deallocate(max_width_per_column)
     end subroutine print_matrix_single
 
-    ! Subroutine for double precision (real(kind=8))
+    ! Print matrix with double precision (real(kind=8))
     subroutine print_matrix_double(matrix, rows, cols, style, number_style, precision, use_scientific)
         implicit none
         real(kind=8), dimension(:, :), intent(in) :: matrix
@@ -472,7 +476,7 @@ module fortran_terminal_enhancer_mod
         deallocate(max_width_per_column)
     end subroutine print_matrix_double
 
-    ! Subroutine for quadruple precision (real(kind=16))
+    ! Print matrix with uadruple precision (real(kind=16))
     subroutine print_matrix_quadruple(matrix, rows, cols, style, number_style, precision, use_scientific)
         implicit none
         real(kind=16), dimension(:, :), intent(in) :: matrix
@@ -555,4 +559,107 @@ module fortran_terminal_enhancer_mod
 
         deallocate(max_width_per_column)
     end subroutine print_matrix_quadruple
+
+    ! Plot Terminal
+    subroutine plot_terminal(x, y, style)
+        implicit none
+        real, intent(in) :: x(:), y(:)
+        type(TextStyle), intent(in), optional :: style
+    
+        ! Local variables
+        integer :: n_points, i
+        real :: x_min, x_max, y_min, y_max, y_value
+        integer, parameter :: plot_width = 70
+        integer, parameter :: plot_height = 20
+        integer, parameter :: label_width = 10
+        character(len=plot_width) :: grid(plot_height)
+        character(len=plot_width + label_width) :: grid_line
+        character(len=label_width - 2) :: label_string
+        integer :: grid_x, grid_y
+        type(TextStyle) :: plot_style
+    
+        ! Initialize plot_style
+        if (present(style)) then
+            plot_style = style
+        else
+            plot_style = PLOT_STYLE
+        end if
+    
+        ! Check that x and y arrays have the same size
+        n_points = size(x)
+        if (size(y) /= n_points) then
+            call print_styled("Error: x and y arrays must have the same size.", ERROR_STYLE)
+            return
+        end if
+    
+        ! Determine x_min, x_max, y_min, y_max
+        x_min = minval(x)
+        x_max = maxval(x)
+        y_min = minval(y)
+        y_max = maxval(y)
+    
+        ! Handle the case where x_max == x_min or y_max == y_min
+        if (x_max == x_min) then
+            x_min = x_min - 1.0
+            x_max = x_max + 1.0
+        end if
+        if (y_max == y_min) then
+            y_min = y_min - 1.0
+            y_max = y_max + 1.0
+        end if
+    
+        ! Initialize grid
+        grid = repeat(' ', plot_width)
+    
+        ! Plot data points onto the grid
+        do i = 1, n_points
+            grid_x = int( ( (x(i) - x_min) / (x_max - x_min) ) * (plot_width - 1) ) + 1
+            grid_y = int( ( (y(i) - y_min) / (y_max - y_min) ) * (plot_height - 1) ) + 1
+            grid_y = plot_height - grid_y + 1  ! Invert y-axis for terminal output
+    
+            ! Ensure grid_x and grid_y are within bounds
+            grid_x = max(1, min(grid_x, plot_width))
+            grid_y = max(1, min(grid_y, plot_height))
+    
+            ! Set the grid point to '*'
+            grid(grid_y)(grid_x:grid_x) = '*'
+        end do
+    
+        ! Output the grid with y-axis labels
+        do grid_y = 1, plot_height
+            ! Calculate y_value
+            y_value = y_max - ( (grid_y - 1) / real(plot_height - 1) ) * (y_max - y_min)
+            write(label_string, '(F8.2)') y_value
+    
+            ! Construct the grid line with the y-axis label
+            grid_line = ''
+            grid_line(1:label_width - 2) = adjustl(label_string)
+            grid_line(label_width - 1:label_width) = ' |'
+            grid_line((label_width + 1):(label_width + plot_width)) = grid(grid_y)
+            call print_styled(trim(grid_line), plot_style)
+        end do
+    
+        ! Optionally, add x-axis labels here
+    
+    end subroutine plot_terminal
+    
 end module fortran_terminal_enhancer_mod
+
+
+program test_plot
+    use fortran_terminal_enhancer_mod
+    implicit none
+
+    real, allocatable :: x(:), y(:)
+    Integer :: i
+    integer :: n
+
+    ! Initialize your data
+    n = 100
+    allocate(x(n), y(n))
+    x = [(i, i = 1, n)] / 10.0
+    y = sin(x)
+
+    ! Plot the data
+    call plot_terminal(x, y)
+end program test_plot
