@@ -1,4 +1,3 @@
-
 module fortran_terminal_enhancer_mod
     implicit none
 
