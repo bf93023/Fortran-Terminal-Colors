@@ -51,8 +51,8 @@ module fortran_terminal_enhancer_mod
 
     ! Define a derived type to store text style options
     type :: TextStyle
-        character(len=10) :: color = "WHITE"
-        character(len=15) :: bg_color = ""
+        character(len=15) :: color = "WHITE"
+        character(len=20) :: bg_color = ""
         logical :: bold = .false.
         logical :: italic = .false.
         logical :: underline = .false.
@@ -294,7 +294,7 @@ module fortran_terminal_enhancer_mod
     subroutine print_progress_bar(current, total)
         implicit none
         integer, intent(in) :: current, total
-        integer :: progress, i
+        integer :: progress
         character(len=50) :: bar
 
         progress = int((real(current) / real(total)) * 50)
