@@ -568,7 +568,7 @@ module fortran_terminal_enhancer_mod
         character(len=*), intent(in), optional :: x_label, y_label
     
         ! Local variables
-        integer :: n_points, i
+        integer :: n_points, i, j
         real :: x_min, x_max, y_min, y_max, y_value, x_value
         integer, parameter :: plot_width = 70
         integer, parameter :: plot_height = 20
@@ -576,11 +576,15 @@ module fortran_terminal_enhancer_mod
         character(len=plot_width) :: grid(plot_height)
         character(len=plot_width + label_width) :: grid_line
         character(len=label_width - 2) :: y_label_string
-        character(len=plot_width) :: x_axis_line
+        character(len=plot_width + label_width) :: x_axis_line
         integer :: grid_x, grid_y
         type(TextStyle) :: plot_style
-        integer :: x_label_pos
+        integer :: x_label_pos, num_x_ticks
         character(len=:), allocatable :: x_label_padded, y_label_padded
+        real, allocatable :: x_ticks(:)
+        character(len=10) :: x_tick_label
+        integer :: tick_positions(plot_width)
+        integer :: tick_length
     
         ! Initialize plot_style
         if (present(style)) then
@@ -650,11 +654,40 @@ module fortran_terminal_enhancer_mod
             call print_styled(trim(grid_line), plot_style)
         end do
     
-        ! Print x-axis
-        grid_line = repeat(' ', label_width - 2) // ' +-' // repeat('-', plot_width)
-        call print_styled(grid_line, plot_style)
+        ! Print x-axis line
+        x_axis_line = repeat(' ', label_width - 2) // ' +-' // repeat('-', plot_width)
+        call print_styled(x_axis_line, plot_style)
     
-        ! Print x-axis labels if provided
+        ! Determine the number of x-axis ticks (avoiding overlap)
+        num_x_ticks = int(plot_width / 15)
+        num_x_ticks = max(3, num_x_ticks)  ! Ensure at least 3 ticks (start, middle, end)
+    
+        allocate(x_ticks(num_x_ticks))
+        do i = 1, num_x_ticks
+            x_ticks(i) = x_min + (i - 1) * (x_max - x_min) / (num_x_ticks - 1)
+        end do
+    
+        ! Initialize tick positions
+        tick_positions = 0
+    
+        ! Prepare x-axis labels
+        x_axis_line = repeat(' ', label_width - 2) // '  ' // repeat(' ', plot_width)
+        do i = 1, num_x_ticks
+            grid_x = int( ( (x_ticks(i) - x_min) / (x_max - x_min) ) * (plot_width - 1) ) + 1
+            grid_x = max(1, min(grid_x, plot_width))
+            tick_positions(grid_x) = 1
+            write(x_tick_label, '(F7.2)') x_ticks(i)
+            tick_length = len_trim(adjustl(x_tick_label))
+            ! Ensure the label fits within the plot width
+            if (label_width + grid_x + tick_length - 1 <= label_width + plot_width) then
+                x_axis_line(label_width + grid_x : label_width + grid_x + tick_length - 1) = adjustl(x_tick_label)
+            end if
+        end do
+    
+        ! Print x-axis labels
+        call print_styled(x_axis_line, plot_style)
+    
+        ! Print x-axis label if provided
         if (present(x_label)) then
             ! Center the x_label under the plot
             x_label_padded = adjustl(x_label)
@@ -663,7 +696,10 @@ module fortran_terminal_enhancer_mod
             call print_styled(grid_line, plot_style)
         end if
     
-    end subroutine plot_terminal    
+        deallocate(x_ticks)
+    
+    end subroutine plot_terminal
+      
     
 end module fortran_terminal_enhancer_mod
 
