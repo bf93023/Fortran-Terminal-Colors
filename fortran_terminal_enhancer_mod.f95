@@ -561,22 +561,26 @@ module fortran_terminal_enhancer_mod
     end subroutine print_matrix_quadruple
 
     ! Plot Terminal
-    subroutine plot_terminal(x, y, style)
+    subroutine plot_terminal(x, y, style, x_label, y_label)
         implicit none
         real, intent(in) :: x(:), y(:)
         type(TextStyle), intent(in), optional :: style
+        character(len=*), intent(in), optional :: x_label, y_label
     
         ! Local variables
         integer :: n_points, i
-        real :: x_min, x_max, y_min, y_max, y_value
+        real :: x_min, x_max, y_min, y_max, y_value, x_value
         integer, parameter :: plot_width = 70
         integer, parameter :: plot_height = 20
         integer, parameter :: label_width = 10
         character(len=plot_width) :: grid(plot_height)
         character(len=plot_width + label_width) :: grid_line
-        character(len=label_width - 2) :: label_string
+        character(len=label_width - 2) :: y_label_string
+        character(len=plot_width) :: x_axis_line
         integer :: grid_x, grid_y
         type(TextStyle) :: plot_style
+        integer :: x_label_pos
+        character(len=:), allocatable :: x_label_padded, y_label_padded
     
         ! Initialize plot_style
         if (present(style)) then
@@ -625,23 +629,41 @@ module fortran_terminal_enhancer_mod
             grid(grid_y)(grid_x:grid_x) = '*'
         end do
     
+        ! Print y-axis label if provided
+        if (present(y_label)) then
+            ! Since vertical text is impractical in the terminal, print the y-label above the plot
+            y_label_padded = adjustl(y_label)
+            call print_styled(' ' // trim(y_label_padded), plot_style)
+        end if
+    
         ! Output the grid with y-axis labels
         do grid_y = 1, plot_height
             ! Calculate y_value
             y_value = y_max - ( (grid_y - 1) / real(plot_height - 1) ) * (y_max - y_min)
-            write(label_string, '(F8.2)') y_value
+            write(y_label_string, '(F8.2)') y_value
     
             ! Construct the grid line with the y-axis label
             grid_line = ''
-            grid_line(1:label_width - 2) = adjustl(label_string)
+            grid_line(1:label_width - 2) = adjustl(y_label_string)
             grid_line(label_width - 1:label_width) = ' |'
             grid_line((label_width + 1):(label_width + plot_width)) = grid(grid_y)
             call print_styled(trim(grid_line), plot_style)
         end do
     
-        ! Optionally, add x-axis labels here
+        ! Print x-axis
+        grid_line = repeat(' ', label_width - 2) // ' +-' // repeat('-', plot_width)
+        call print_styled(grid_line, plot_style)
     
-    end subroutine plot_terminal
+        ! Print x-axis labels if provided
+        if (present(x_label)) then
+            ! Center the x_label under the plot
+            x_label_padded = adjustl(x_label)
+            x_label_pos = label_width + (plot_width - len_trim(x_label_padded)) / 2
+            grid_line = repeat(' ', x_label_pos) // trim(x_label_padded)
+            call print_styled(grid_line, plot_style)
+        end if
+    
+    end subroutine plot_terminal    
     
 end module fortran_terminal_enhancer_mod
 
@@ -651,8 +673,7 @@ program test_plot
     implicit none
 
     real, allocatable :: x(:), y(:)
-    Integer :: i
-    integer :: n
+    integer :: n, i
 
     ! Initialize your data
     n = 100
@@ -660,6 +681,7 @@ program test_plot
     x = [(i, i = 1, n)] / 10.0
     y = sin(x)
 
-    ! Plot the data
-    call plot_terminal(x, y)
+    ! Plot the data with labels
+    call plot_terminal(x, y, x_label="X-axis (Time)", y_label="Y-axis (Amplitude)")
 end program test_plot
+
