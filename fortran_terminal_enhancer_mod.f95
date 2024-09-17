@@ -555,6 +555,4 @@ module fortran_terminal_enhancer_mod
 
         deallocate(max_width_per_column)
     end subroutine print_matrix_quadruple
-
-    
 end module fortran_terminal_enhancer_mod
