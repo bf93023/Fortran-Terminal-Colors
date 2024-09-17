@@ -13,7 +13,6 @@ module fortran_terminal_enhancer_mod
     character(len=*), parameter :: BLACK = char(27) // '[30m'
     character(len=*), parameter :: BRIGHT_RED = char(27) // '[91m'
     character(len=*), parameter :: BRIGHT_YELLOW = char(27) // '[93m'
-    character(len=*), parameter :: BRIGHT_BLUE = char(27) // '[94m'
     character(len=*), parameter :: BRIGHT_MAGENTA = char(27) // '[95m'
     character(len=*), parameter :: BRIGHT_CYAN = char(27) // '[96m'
     character(len=*), parameter :: BRIGHT_WHITE = char(27) // '[97m'
@@ -61,19 +60,22 @@ module fortran_terminal_enhancer_mod
     end type TextStyle
 
     ! Enhanced preset styles with distinct styling for code
-    type(TextStyle), parameter :: TITLE_STYLE = TextStyle(color="BRIGHT_BLUE", &
-        bg_color="", bold=.true., underline=.true., alignment="center")
-
-    type(TextStyle), parameter :: SUBTITLE_STYLE = TextStyle(color="BRIGHT_MAGENTA", &
+    type(TextStyle), parameter :: TITLE_STYLE = TextStyle(color="BLUE", &
         bg_color="", bold=.true., alignment="center")
 
-    type(TextStyle), parameter :: HEADING_STYLE = TextStyle(color="BRIGHT_GREEN", &
+    type(TextStyle), parameter :: SUBTITLE_STYLE = TextStyle(color="WHITE", &
+        bg_color="", bold=.true., alignment="center")
+
+    type(TextStyle), parameter :: HEADING_STYLE = TextStyle(color="BLUE", &
         bg_color="", bold=.true., alignment="left")
 
     type(TextStyle), parameter :: BODY_STYLE_CONST = TextStyle(color="WHITE", &
         bg_color="", alignment="left")
 
-    type(TextStyle), parameter :: BULLET_STYLE = TextStyle(color="CYAN", &
+    type(TextStyle), parameter :: BODY_STYLE_INDENT = TextStyle(color="WHITE", &
+        bg_color="", indent=2, alignment="left")
+
+    type(TextStyle), parameter :: BULLET_STYLE = TextStyle(color="WHITE", &
         bg_color="", alignment="left", indent=4)
 
     ! Additional styles
@@ -85,6 +87,7 @@ module fortran_terminal_enhancer_mod
 
     type(TextStyle), parameter :: SUCCESS_STYLE = TextStyle(color="GREEN", &
         bg_color="", bold=.true., alignment="left")
+
     type(TextStyle), parameter :: QUOTE_STYLE = TextStyle(color="MAGENTA", &
         bg_color="", italic=.true., alignment="left", indent=2)
 
@@ -96,7 +99,7 @@ module fortran_terminal_enhancer_mod
         bg_color="", bold=.false., alignment="center")
 
     ! Info style for general informational messages
-    type(TextStyle), parameter :: INFO_STYLE = TextStyle(color="CYAN", &
+    type(TextStyle), parameter :: INFO_STYLE = TextStyle(color="DIM", &
         bg_color="", bold=.false., alignment="left")
 
     ! Debug style for debug messages
@@ -131,10 +134,13 @@ module fortran_terminal_enhancer_mod
     type(TextStyle), parameter :: SHADOWED_TEXT_STYLE = TextStyle(color="BLACK", &
         bg_color="", italic=.false., bold=.false., alignment="left")
 
+    ! Style for dimmed text
+    type(TextStyle), parameter :: DIMMED_TEXT_STYLE = TextStyle(color="DIM", &
+        bg_color="", italic=.false., bold=.false., alignment="left")
+
     ! Generic interface for print_matrix
     interface print_matrix
-        module procedure print_matrix_single, print_matrix_double, &
-            print_matrix_quadruple
+        module procedure print_matrix_single, print_matrix_double
     end interface print_matrix
 
     contains
@@ -195,8 +201,6 @@ module fortran_terminal_enhancer_mod
                 ansi_code = ansi_code // BRIGHT_RED
             case ("BRIGHT_YELLOW")
                 ansi_code = ansi_code // BRIGHT_YELLOW
-            case ("BRIGHT_BLUE")
-                ansi_code = ansi_code // BRIGHT_BLUE
             case ("BRIGHT_MAGENTA")
                 ansi_code = ansi_code // BRIGHT_MAGENTA
             case ("BRIGHT_CYAN")
@@ -255,8 +259,8 @@ module fortran_terminal_enhancer_mod
 
     subroutine print_aligned(text, alignment, indent)
         implicit none
-        character(len=*), intent(in), optional :: text
-        character(len=*), intent(in), optional :: alignment
+        character(len=*), intent(in) :: text
+        character(len=*), intent(in) :: alignment
         integer, intent(in) :: indent
         integer :: text_len, padding
 
@@ -471,88 +475,4 @@ module fortran_terminal_enhancer_mod
     
         deallocate(max_width_per_column)
     end subroutine print_matrix_double
-
-    ! Subroutine for quadruple precision (real(kind=16))
-    subroutine print_matrix_quadruple(matrix, rows, cols, style, number_style, precision, use_scientific)
-        implicit none
-        real(kind=16), dimension(:, :), intent(in) :: matrix
-        integer, intent(in) :: rows, cols
-        type(TextStyle), intent(in) :: style, number_style
-        integer, intent(in) :: precision
-        logical, intent(in) :: use_scientific
-        integer :: i, j
-        character(len=30) :: element_str
-        character(len=500) :: row_str
-        integer :: total_width
-        character(len=30) :: format_string
-        character(len=3) :: precision_str
-        integer, dimension(:), allocatable :: max_width_per_column
-        integer :: column_width
-
-        ! Detect if matrix is empty
-        if (rows == 0 .or. cols == 0) then
-            call print_styled("Empty matrix", style)
-            return
-        end if
-
-        ! Convert precision to a character string for format creation
-        write(precision_str, '(I0)') precision
-
-        ! Determine the format string based on user specifications
-        if (use_scientific) then
-            column_width = precision + 8
-            write(format_string, '(A, I2.2, A, I0, A)') '(E', column_width, '.', precision, ')'
-        else
-            column_width = precision + 5
-            write(format_string, '(A, I2.2, A, I0, A)') '(F', column_width, '.', precision, ')'
-        end if
-
-        allocate(max_width_per_column(cols))
-        max_width_per_column = 0
-
-        ! Find the maximum width of any formatted matrix element for each column
-        do j = 1, cols
-            do i = 1, rows
-                if (matrix(i, j) /= matrix(i, j)) then
-                    element_str = 'NaN'
-                else if (matrix(i, j) > 1.0E308_16) then
-                    element_str = 'Inf'
-                else if (matrix(i, j) < -1.0E308_16) then
-                    element_str = '-Inf'
-                else
-                    write(element_str, format_string) matrix(i, j)
-                end if
-                max_width_per_column(j) = max(max_width_per_column(j), len_trim(adjustl(element_str)))
-            end do
-        end do
-
-        total_width = sum(max_width_per_column) + (cols - 1) + 4
-
-        call print_styled("+" // repeat("-", total_width - 2) // "+", style)
-
-        do i = 1, rows
-            row_str = "|"
-            do j = 1, cols
-                if (matrix(i, j) /= matrix(i, j)) then
-                    element_str = 'NaN'
-                else if (matrix(i, j) > 1.0E16_16) then
-                    element_str = 'Inf'
-                else if (matrix(i, j) < -1.0E16_16) then
-                    element_str = '-Inf'
-                else
-                    write(element_str, format_string) matrix(i, j)
-                end if
-
-                row_str = trim(row_str) // " " // repeat(' ', max_width_per_column(j) &
-                - len_trim(adjustl(element_str))) // trim(adjustl(element_str))
-            end do
-            row_str = trim(row_str) // " |"
-            call print_styled(trim(row_str), number_style)
-        end do
-
-        call print_styled("+" // repeat("-", total_width - 2) // "+", style)
-        call print_styled("", style)
-
-        deallocate(max_width_per_column)
-    end subroutine print_matrix_quadruple
-end module fortran_terminal_enhancer_mod
+end module fort_colors_mod
