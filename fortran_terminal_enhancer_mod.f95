@@ -62,20 +62,45 @@ module fortran_terminal_enhancer_mod
 
     ! Enhanced preset styles with distinct styling for code
     type(TextStyle), parameter :: TITLE_STYLE = TextStyle(color="BRIGHT_BLUE", &
-        bg_color="", bold=.true., underline=.true., alignment="center")
+        bg_color="", bold=.true., underline=.false., alignment="center")
 
-    type(TextStyle), parameter :: SUBTITLE_STYLE = TextStyle(color="BRIGHT_MAGENTA", &
+    type(TextStyle), parameter :: SUBTITLE_STYLE = TextStyle(color="WHITE", &
         bg_color="", bold=.true., alignment="center")
 
-    type(TextStyle), parameter :: HEADING_STYLE = TextStyle(color="BRIGHT_GREEN", &
+    type(TextStyle), parameter :: HEADING_STYLE = TextStyle(color="BLUE", &
         bg_color="", bold=.true., alignment="left")
 
     type(TextStyle), parameter :: BODY_STYLE_CONST = TextStyle(color="WHITE", &
         bg_color="", alignment="left")
-
-    type(TextStyle), parameter :: BULLET_STYLE = TextStyle(color="CYAN", &
+    type(TextStyle), parameter :: BODY_BOLD = TextStyle(color="WHITE", &
+        bg_color="", bold=.true., alignment="left")
+    type(TextStyle), parameter :: BODY_STYLE_INDENT = TextStyle(color="WHITE", &
+        bg_color="", alignment="left", indent=4)
+        type(TextStyle), parameter :: BULLET_STYLE = TextStyle(color="CYAN", &
         bg_color="", alignment="left", indent=4)
 
+    ! Block color styles with background colors
+    type(TextStyle), parameter :: ERROR_BLOCK_STYLE = TextStyle(color="", &
+        bg_color="BG_BRIGHT_RED", bold=.false., italic=.false., underline=.false., alignment="left")
+
+    type(TextStyle), parameter :: SUCCESS_BLOCK_STYLE = TextStyle(color="", &
+        bg_color="BG_GREEN", bold=.false., italic=.false., underline=.false., alignment="left")
+
+    type(TextStyle), parameter :: HEADING_BLOCK_STYLE = TextStyle(color="", &
+        bg_color="BG_BLUE", bold=.false., italic=.false., underline=.false., alignment="left")
+
+    type(TextStyle), parameter :: WARNING_BLOCK_STYLE = TextStyle(color="", &
+        bg_color="BG_YELLOW", bold=.false., italic=.false., underline=.false., alignment="left")
+
+    type(TextStyle), parameter :: INFO_BLOCK_STYLE = TextStyle(color="", &
+        bg_color="BG_CYAN", bold=.false., italic=.false., underline=.false., alignment="left")
+    
+    type(TextStyle), parameter :: PURPLE_BLOCK_STYLE = TextStyle(color="", &
+        bg_color="BG_BRIGHT_MAGENTA", bold=.false., italic=.false., underline=.false., alignment="left")
+    
+    type(TextStyle), parameter :: WHITE_BLOCK_STYLE = TextStyle(color="", &
+        bg_color="BG_WHITE", bold=.false., italic=.false., underline=.false., alignment="left")
+    
     ! Additional styles
     type(TextStyle), parameter :: ERROR_STYLE = TextStyle(color="BRIGHT_RED", &
         bg_color="", bold=.true., alignment="left")
@@ -130,7 +155,9 @@ module fortran_terminal_enhancer_mod
     ! Shadowed text style for less emphasized text
     type(TextStyle), parameter :: SHADOWED_TEXT_STYLE = TextStyle(color="BLACK", &
         bg_color="", italic=.false., bold=.false., alignment="left")
-    ! Style used for plotting
+    type(TextStyle), parameter :: DIMMED_TEXT_STYLE = TextStyle(color="DIM", &
+        bg_color="", italic=.false., bold=.false., alignment="left")
+        ! Style used for plotting
     type(TextStyle), parameter :: PLOT_STYLE = TextStyle(color="BRIGHT_WHITE", &
         bg_color="", bold=.false., alignment="left")
 
@@ -567,219 +594,123 @@ module fortran_terminal_enhancer_mod
         deallocate(max_width_per_column)
     end subroutine print_matrix_quadruple
 
-    subroutine print_styled_character(char, style)
+    ! Print a horizontal divider with a specified style
+    subroutine print_divider(style, divider_char, length)
         implicit none
-        character(len=1), intent(in) :: char
         type(TextStyle), intent(in) :: style
-        character(len=:), allocatable :: formatted_char
-
-        ! Generate ANSI codes based on style
-        if (ansi_support) then
-            formatted_char = create_ansi_code(style) // char // RESET
+        character(len=*), intent(in), optional :: divider_char
+        integer, intent(in), optional :: length
+        character(len=:), allocatable :: divider
+        integer :: divider_length, char_length, repeat_count
+        character(len=:), allocatable :: full_divider
+    
+        ! Set default values if optional arguments are not provided
+        if (present(divider_char)) then
+            divider = divider_char
         else
-            formatted_char = char
+            divider = "="
         end if
+    
+        if (present(length)) then
+            divider_length = length
+        else
+            divider_length = 61
+        end if
+    
+        ! Calculate the length of the divider character and the repeat count
+        char_length = len_trim(divider)
+        repeat_count = ceiling(real(divider_length) / char_length)
+    
+        ! Create the full divider string
+        full_divider = repeat(divider, repeat_count)
+    
+        ! Truncate to the desired length
+        divider = full_divider(1:divider_length)
+    
+        ! Print the styled divider
+        call print_styled(divider, style)
 
-        ! Write the character without advancing to a new line
-        write(*, '(A)', advance='no') formatted_char
-    end subroutine print_styled_character
+        ! Deallocate the full_divider string
+        deallocate(full_divider)
+    end subroutine print_divider
 
-    ! Plot Terminal
-    subroutine plot_terminal(series_array, x_label, y_label)
+    subroutine create_colored_line(style, width)
         implicit none
-        type(DataSeries), intent(in) :: series_array(:)
-        character(len=*), intent(in), optional :: x_label, y_label
+        type(TextStyle), intent(in) :: style
+        integer, intent(in), optional :: width
+        integer :: w
+        character(len=:), allocatable :: ansi_code
     
-        ! Local variables
-        integer :: n_series, i, j, k
-        real :: x_min, x_max, y_min, y_max, y_value
-        integer, parameter :: plot_width = 70
-        integer, parameter :: plot_height = 20
-        integer, parameter :: label_width = 10
-        character(len=plot_width) :: grid(plot_height)
-        character(len=label_width - 2) :: y_label_string
-        type(TextStyle), allocatable :: grid_style(:,:)
-        type(TextStyle) :: plot_style
-        real :: x_series_min, x_series_max, y_series_min, y_series_max
-        character(len=:), allocatable :: x_label_padded, y_label_padded
-        integer :: grid_x, grid_y
-        integer :: num_x_ticks
-        real, allocatable :: x_ticks(:)
-        character(len=10) :: x_tick_label
-        integer :: tick_positions(plot_width)
-        integer :: x_label_pos, tick_length
-    
-        ! Number of data series
-        n_series = size(series_array)
-    
-        ! Initialize plot_style (use the style of the first series as default)
-        plot_style = series_array(1)%style
-    
-        ! Initialize x_min, x_max, y_min, y_max
-        x_min = huge(0.0)
-        x_max = -huge(0.0)
-        y_min = huge(0.0)
-        y_max = -huge(0.0)
-    
-        ! Determine global x_min, x_max, y_min, y_max across all series
-        do i = 1, n_series
-            if (size(series_array(i)%x) /= size(series_array(i)%y)) then
-                call print_styled("Error: x and y arrays in each series must have the same size.", ERROR_STYLE)
-                return
-            end if
-            x_series_min = minval(series_array(i)%x)
-            x_series_max = maxval(series_array(i)%x)
-            y_series_min = minval(series_array(i)%y)
-            y_series_max = maxval(series_array(i)%y)
-            x_min = min(x_min, x_series_min)
-            x_max = max(x_max, x_series_max)
-            y_min = min(y_min, y_series_min)
-            y_max = max(y_max, y_series_max)
-        end do
-    
-        ! Handle the case where x_max == x_min or y_max == y_min
-        if (x_max == x_min) then
-            x_min = x_min - 1.0
-            x_max = x_max + 1.0
-        end if
-        if (y_max == y_min) then
-            y_min = y_min - 1.0
-            y_max = y_max + 1.0
+        ! Set default width if not provided
+        if (present(width)) then
+            w = width
+        else
+            w = 80
         end if
     
-        ! Initialize grid and grid_style
-        grid = repeat(' ', plot_width)
-        allocate(grid_style(plot_height, plot_width))
-        grid_style(:,:) = plot_style  ! Initialize with default plot_style
-    
-        ! Plot data points for each series onto the grid
-        do i = 1, n_series
-            do j = 1, size(series_array(i)%x)
-                grid_x = int( ( (series_array(i)%x(j) - x_min) / (x_max - x_min) ) * (plot_width - 1) ) + 1
-                grid_y = int( ( (series_array(i)%y(j) - y_min) / (y_max - y_min) ) * (plot_height - 1) ) + 1
-                grid_y = plot_height - grid_y + 1  ! Invert y-axis for terminal output
-    
-                ! Ensure grid_x and grid_y are within bounds
-                grid_x = max(1, min(grid_x, plot_width))
-                grid_y = max(1, min(grid_y, plot_height))
-    
-                ! Set the grid point to the series symbol
-                grid(grid_y)(grid_x:grid_x) = series_array(i)%symbol
-                ! Set the style for this grid point
-                grid_style(grid_y, grid_x) = series_array(i)%style
-            end do
-        end do
-    
-        ! Print y-axis label if provided
-        if (present(y_label)) then
-            y_label_padded = adjustl(y_label)
-            call print_styled(' ' // trim(y_label_padded), plot_style)
+        ! Generate ANSI codes based on style and create the colored line
+        if (ansi_support) then
+            ansi_code = create_ansi_code(style) // repeat(' ', w) // RESET
+        else
+            ansi_code = repeat(' ', w)
         end if
     
-        ! Output the grid with y-axis labels
-        do grid_y = 1, plot_height
-            ! Calculate y_value
-            y_value = y_max - ( (grid_y - 1) / real(plot_height - 1) ) * (y_max - y_min)
-            write(y_label_string, '(F8.2)') y_value
+        ! Print the colored line
+        write(*, '(A)') ansi_code
+    end subroutine create_colored_line
+
+    subroutine create_color_block(style, height, width)
+        implicit none
+        type(TextStyle), intent(in) :: style
+        integer, intent(in), optional :: height, width
+        integer :: h_max, w_max
+        integer :: h
     
-            ! Print y-axis label and separator
-            write(*,'(A)', advance='no') adjustl(y_label_string) // ' |'
-    
-            ! Print the grid line with styles
-            do k = 1, plot_width
-                call print_styled_character(grid(grid_y)(k:k), grid_style(grid_y,k))
-            end do
-    
-            ! End the line
-            write(*,*)
-        end do
-    
-        ! Print x-axis line
-        call print_styled(repeat(' ', label_width - 2) // ' +-' // repeat('-', plot_width), plot_style)
-    
-        ! Determine the number of x-axis ticks (avoiding overlap)
-        num_x_ticks = int(plot_width / 15)
-        num_x_ticks = max(3, num_x_ticks)  ! Ensure at least 3 ticks (start, middle, end)
-    
-        allocate(x_ticks(num_x_ticks))
-        do i = 1, num_x_ticks
-            x_ticks(i) = x_min + (i - 1) * (x_max - x_min) / (num_x_ticks - 1)
-        end do
-    
-        ! Prepare x-axis labels
-        x_axis_line = repeat(' ', label_width - 2) // '  ' // repeat(' ', plot_width)
-        do i = 1, num_x_ticks
-            grid_x = int( ( (x_ticks(i) - x_min) / (x_max - x_min) ) * (plot_width - 1) ) + 1
-            grid_x = max(1, min(grid_x, plot_width))
-            write(x_tick_label, '(F7.2)') x_ticks(i)
-            tick_length = len_trim(adjustl(x_tick_label))
-            if (label_width + grid_x + tick_length - 1 <= label_width + plot_width) then
-                x_axis_line(label_width + grid_x : label_width + grid_x + tick_length - 1) = adjustl(x_tick_label)
-            end if
-        end do
-    
-        ! Print x-axis labels
-        call print_styled(x_axis_line, plot_style)
-    
-        ! Print x-axis label if provided
-        if (present(x_label)) then
-            x_label_padded = adjustl(x_label)
-            x_label_pos = label_width + (plot_width - len_trim(x_label_padded)) / 2
-            call print_styled(repeat(' ', x_label_pos) // trim(x_label_padded), plot_style)
+        ! Set default height if not provided
+        if (present(height)) then
+            h_max = height
+        else
+            h_max = 1
         end if
     
-        deallocate(x_ticks)
-        deallocate(grid_style)
-    end subroutine plot_terminal
+        ! Set default width if not provided
+        if (present(width)) then
+            w_max = width
+        else
+            w_max = 80
+        end if
     
-    
-      
+        ! Loop to print the colored lines
+        do h = 1, h_max
+            call create_colored_line(style, w_max)
+        end do
+    end subroutine create_color_block
     
 end module fortran_terminal_enhancer_mod
 
-
-program test_plot_multiple_series
+program color_demo
     use fortran_terminal_enhancer_mod
     implicit none
 
-    type(DataSeries), allocatable :: series_array(:)
-    integer :: n, n_series, i
+    ! Create a single bright red block line of default width (80)
+    call create_colored_line(ERROR_BLOCK_STYLE)
 
-    ! Number of data points
-    n = 100
+    ! Create a block of green lines, 5 lines high, 60 columns wide
+    call create_color_block(SUCCESS_BLOCK_STYLE, 5, 60)
 
-    ! Number of data series
-    n_series = 3
-    allocate(series_array(n_series))
+    ! Create a block of blue lines, 3 lines high, default width (80)
+    call create_color_block(HEADING_BLOCK_STYLE, 3)
 
-    ! Series 1: y = sin(x)
-    allocate(series_array(1)%x(n), series_array(1)%y(n))
-    series_array(1)%x = [(i, i = 1, n)] / 10.0
-    series_array(1)%y = sin(series_array(1)%x)
-    series_array(1)%symbol = '*'
-    series_array(1)%style = TextStyle(color="RED")
+    ! Create a single yellow block line, 100 columns wide
+    call create_colored_line(WARNING_BLOCK_STYLE, 100)
 
-    ! Series 2: y = cos(x)
-    allocate(series_array(2)%x(n), series_array(2)%y(n))
-    series_array(2)%x = [(i, i = 1, n)] / 10.0
-    series_array(2)%y = cos(series_array(2)%x)
-    series_array(2)%symbol = '+'
-    series_array(2)%style = TextStyle(color="GREEN")
+    ! Create a block of cyan lines, 2 lines high, 40 columns wide
+    call create_color_block(INFO_BLOCK_STYLE, 2, 40)
 
-    ! Series 3: y = sin(x) * cos(x)
-    allocate(series_array(3)%x(n), series_array(3)%y(n))
-    series_array(3)%x = [(i, i = 1, n)] / 10.0
-    series_array(3)%y = sin(series_array(3)%x) * cos(series_array(3)%x)
-    series_array(3)%symbol = 'o'
-    series_array(3)%style = TextStyle(color="BLUE")
+    ! Create a block of bright magenta lines, 4 lines high, 70 columns wide
+    call create_color_block(PURPLE_BLOCK_STYLE, 4, 70)
 
-    ! Plot the data series
-    call plot_terminal(series_array, x_label="X-axis (Time)", y_label="Y-axis (Value)")
+    ! Create a white block
+    call create_color_block(WHITE_BLOCK_STYLE, 100)
+end program color_demo
 
-    ! Deallocate arrays
-    do i = 1, n_series
-        deallocate(series_array(i)%x, series_array(i)%y)
-    end do
-    deallocate(series_array)
-
-end program test_plot_multiple_series
